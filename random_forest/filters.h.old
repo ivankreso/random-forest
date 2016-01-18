@@ -1,0 +1,22 @@
+#ifndef FILTERS_H_
+#define FILTERS_H_
+
+#include <vector>
+#include "filter_base.h"
+
+namespace forest {
+
+class FeatureValueGetter : public FilterBase {
+ public:
+  FeatureValueGetter(size_t feature_num) : feature_(feature_num) {}
+
+  double GetResponse(const DataBase& data, size_t sample_num) const override {
+    return data.GetFeature(sample_num, feature_);
+  }
+ private:
+  size_t feature_;
+};
+
+} // namespace forest
+
+#endif  // FILTERS_H_

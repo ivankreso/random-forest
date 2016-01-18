@@ -1,0 +1,76 @@
+log_loss::eval(node) {
+  // See http://stat.wharton.upenn.edu/~buja/PAPERS/paper-proper-scoring.pdf, Chapter 17:
+  // "Tree algorithms agree with each other in that they all estimate local conditional class probabilities with simple proportions, 
+  //  but they differ in how they judge the fit of these proportions in terms of information measures."
+  // value = (a) entropy for log-loss, (b) gini index for squared loss, (c) semi-circle for boosting loss, and (d) cost-weighted Bayes risk for cost-weighted misclassification loss  
+  // TODO: regression and unsupervised losses 
+
+  // TODO: compute entropy for the data/labels in the node
+}
+
+univariate_hard_split::sample(data, std::vector<int>& indices) {
+  // TODO: sample dimension
+  // TODO: sample threshold
+  int data_dim = data->get_dim();
+  children.push_back(node()); // can we replace this with something better, e.g. to just initialize nodes in the children, init data, labels, set indices and value to 0
+  children.push_back(node());
+  // iterate over the indices to assign them to children ...
+  for (auto it = indices.begin(); it < indices.end(); it++) {
+    if (data[*it * data_dim + dim] > threshold)
+      children[0].indices.push_back(*it);
+    else
+      children[1].indices.push_back(*it);
+  }
+  // ...  and get the loss decrease for this split ...
+  loss_decrease = node.indices.size() * node.get_value();
+  for (auto it = children.begin(); it != children.end(); it++) {
+    it->value = loss.eval(*it);
+    loss_decrease -= it->indices.size() * it->value;
+  }
+}
+
+bool
+tree::node::split() {
+  bool splitted = false;
+
+  // if the node doesn't have too many indices stop splitting to prevent over-fitting ...
+  if (indices.size() >= parms.min_indices) { 
+    // ... otherwise sample some splits and order them by the loss reduction ...
+    priority_queue<split> pq_splits;
+    for (int split_id = 0; split_id < parms.get_n_split(); split_id++) {
+      split s;
+      s.sample(data, indices);
+      pq_splits.insert(s, s->get_loss_reduction());
+    }
+
+    // ... and if the loss reduction obtained by the best split is big enough ...
+    if (splits.top().get_loss_reduction() >= parms.min_loss_reduction) {
+      // ... we set the split for this node as the best found split ...
+      split = splits.top();
+      // ... delete the indices of the data points (since they are redistributed to its children) ...
+      indices.clear(); 
+      // ... and mark the node as splitted
+      splitted = true;
+    }
+  }
+
+  return splitted;
+}
+
+
+tree::grow(parms) {
+  priority_queue pq;
+  // split the root node ... 
+  root.split();
+  // ... and insert the splitted node into the priority queue ...
+  pq.push(root, root.get_loss_reduction());
+  // ... where we have not reached the termination
+  while (!stop_growing(parms)) {
+    // ... get the node whose split decreases the loss the most ...
+    node = pq.pop();
+    for (/* iterate over children */)
+      // ... split its children, and push them into the priority queue
+      if (child.split()) pq.push(child, child.get_loss_reduction());
+  }
+}
+
